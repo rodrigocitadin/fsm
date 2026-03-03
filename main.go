@@ -61,12 +61,9 @@ func graphVersion(sequenceOfEvents []Event) {
 
 	fsm := graph.NewFSM(locked)
 
-	parsedSequenceOfEvents := make([]graph.Event, 0, len(sequenceOfEvents))
 	for _, event := range sequenceOfEvents {
-		parsedSequenceOfEvents = append(parsedSequenceOfEvents, graph.Event(event))
+		fsm.Compute(graph.Event(event))
 	}
-
-	fsm.Compute(parsedSequenceOfEvents)
 }
 
 func flatVersion(sequenceOfEvents []Event) {
@@ -85,12 +82,9 @@ func flatVersion(sequenceOfEvents []Event) {
 
 	fsm := flat.NewFSM(StateLocked, transitionTable)
 
-	parsedSequenceOfEvents := make([]flat.Event, 0, len(sequenceOfEvents))
 	for _, event := range sequenceOfEvents {
-		parsedSequenceOfEvents = append(parsedSequenceOfEvents, flat.Event(event))
+		fsm.Compute(flat.Event(event))
 	}
-
-	fsm.Compute(parsedSequenceOfEvents)
 }
 
 func isValidCoin() bool {
