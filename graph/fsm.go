@@ -19,7 +19,7 @@ type FiniteStateMachine struct {
 	CurrentState *State
 }
 
-func NewFiniteStateMachine(initialState *State) *FiniteStateMachine {
+func NewFSM(initialState *State) *FiniteStateMachine {
 	return &FiniteStateMachine{
 		CurrentState: initialState,
 	}

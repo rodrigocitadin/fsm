@@ -1,56 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/rodrigocitadin/fsm/flat"
+	"github.com/rodrigocitadin/fsm/graph"
+)
 
 type Event string
-
-type State struct {
-	Name   string
-	Value  any
-	Arrows []Arrow
-}
-
-type Arrow struct {
-	Edge  *State
-	Event Event
-	Rules []func() bool
-}
-
-type FiniteStateMachine struct {
-	CurrentState *State
-}
-
-func NewFiniteStateMachine(initialState *State) *FiniteStateMachine {
-	return &FiniteStateMachine{
-		CurrentState: initialState,
-	}
-}
-
-func (fsm *FiniteStateMachine) Compute(events []Event) {
-	for _, event := range events {
-		fmt.Printf("Processing event: %s\n", event)
-
-		for _, arrow := range fsm.CurrentState.Arrows {
-			if event == arrow.Event {
-				canTransition := true
-				for _, ruleFn := range arrow.Rules {
-					if !ruleFn() {
-						canTransition = false
-						break
-					}
-				}
-
-				if canTransition {
-					fmt.Printf("  -> Transitioning from %s to %s\n", fsm.CurrentState.Name, arrow.Edge.Name)
-					fsm.CurrentState = arrow.Edge
-					break
-				} else {
-					fmt.Printf("  -> Transition blocked by rule\n")
-				}
-			}
-		}
-	}
-}
 
 const (
 	EventCoin Event = "Coin"
@@ -58,33 +15,6 @@ const (
 )
 
 func main() {
-	locked := &State{Name: "Locked"}
-	unlocked := &State{Name: "Unlocked"}
-
-	isValidCoin := func() bool {
-		return true
-	}
-
-	// If Locked:
-	// - Coin unlocks it
-	// - Push does nothing (stays locked)
-	locked.Arrows = []Arrow{
-		{Edge: unlocked, Event: EventCoin, Rules: []func() bool{isValidCoin}},
-		{Edge: locked, Event: EventPush},
-	}
-
-	// If Unlocked:
-	// - Push locks it (person walks through)
-	// - Coin does nothing (already unlocked, eats your coin)
-	unlocked.Arrows = []Arrow{
-		{Edge: locked, Event: EventPush},
-		{Edge: unlocked, Event: EventCoin},
-	}
-
-	fsm := NewFiniteStateMachine(locked)
-
-	fmt.Printf("Initial State: %s\n\n", fsm.CurrentState.Name)
-
 	sequenceOfEvents := []Event{
 		EventPush, // Try to push while locked
 		EventCoin, // Insert coin
@@ -93,7 +23,76 @@ func main() {
 		EventPush, // Try to walk through again
 	}
 
-	fsm.Compute(sequenceOfEvents)
+	fmt.Println("--- GRAPH VERSION ---")
 
-	fmt.Printf("Final State: %s\n", fsm.CurrentState.Name)
+	graphVersion(sequenceOfEvents)
+
+	fmt.Println("--- END OF GRAPH VERSION ---\n")
+	fmt.Println("--- FLAT VERSION ---")
+
+	flatVersion(sequenceOfEvents)
+
+	fmt.Println("--- END OF FLAT VERSION ---")
+}
+
+func graphVersion(sequenceOfEvents []Event) {
+	locked := &graph.State{Value: "Locked"}
+	unlocked := &graph.State{Value: "Unlocked"}
+
+	isValidCoin := func() bool {
+		return true
+	}
+
+	// If Locked:
+	// - Coin unlocks it
+	// - Push does nothing (stays locked)
+	locked.Arrows = []graph.Arrow{
+		{Edge: unlocked, Event: graph.Event(EventCoin), Rules: []func() bool{isValidCoin}},
+		{Edge: locked, Event: graph.Event(EventPush)},
+	}
+
+	// If Unlocked:
+	// - Push locks it (person walks through)
+	// - Coin does nothing (already unlocked, eats your coin)
+	unlocked.Arrows = []graph.Arrow{
+		{Edge: locked, Event: graph.Event(EventPush)},
+		{Edge: unlocked, Event: graph.Event(EventCoin)},
+	}
+
+	fsm := graph.NewFSM(locked)
+
+	parsedSequenceOfEvents := make([]graph.Event, 0, len(sequenceOfEvents))
+	for _, event := range sequenceOfEvents {
+		parsedSequenceOfEvents = append(parsedSequenceOfEvents, graph.Event(event))
+	}
+
+	fsm.Compute(parsedSequenceOfEvents)
+}
+
+func flatVersion(sequenceOfEvents []Event) {
+	const (
+		StateLocked   flat.State = "Locked"
+		StateUnlocked flat.State = "Unlocked"
+	)
+
+	// The entire logic of the FSM is defined in one clean, readable block
+	transitionTable := map[flat.StateEvent]flat.Transition{
+		{State: StateLocked, Event: flat.Event(EventCoin)}:   {NextState: StateUnlocked, Rules: []func() bool{isValidCoin}},
+		{State: StateLocked, Event: flat.Event(EventPush)}:   {NextState: StateLocked},
+		{State: StateUnlocked, Event: flat.Event(EventPush)}: {NextState: StateLocked},
+		{State: StateUnlocked, Event: flat.Event(EventCoin)}: {NextState: StateUnlocked},
+	}
+
+	fsm := flat.NewFSM(StateLocked, transitionTable)
+
+	parsedSequenceOfEvents := make([]flat.Event, 0, len(sequenceOfEvents))
+	for _, event := range sequenceOfEvents {
+		parsedSequenceOfEvents = append(parsedSequenceOfEvents, flat.Event(event))
+	}
+
+	fsm.Compute(parsedSequenceOfEvents)
+}
+
+func isValidCoin() bool {
+	return true
 }
