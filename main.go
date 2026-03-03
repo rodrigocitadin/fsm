@@ -51,3 +51,49 @@ func (fsm *FiniteStateMachine) Compute(events []Event) {
 		}
 	}
 }
+
+const (
+	EventCoin Event = "Coin"
+	EventPush Event = "Push"
+)
+
+func main() {
+	locked := &State{Name: "Locked"}
+	unlocked := &State{Name: "Unlocked"}
+
+	isValidCoin := func() bool {
+		return true
+	}
+
+	// If Locked:
+	// - Coin unlocks it
+	// - Push does nothing (stays locked)
+	locked.Arrows = []Arrow{
+		{Edge: unlocked, Event: EventCoin, Rules: []func() bool{isValidCoin}},
+		{Edge: locked, Event: EventPush},
+	}
+
+	// If Unlocked:
+	// - Push locks it (person walks through)
+	// - Coin does nothing (already unlocked, eats your coin)
+	unlocked.Arrows = []Arrow{
+		{Edge: locked, Event: EventPush},
+		{Edge: unlocked, Event: EventCoin},
+	}
+
+	fsm := NewFiniteStateMachine(locked)
+
+	fmt.Printf("Initial State: %s\n\n", fsm.CurrentState.Name)
+
+	sequenceOfEvents := []Event{
+		EventPush, // Try to push while locked
+		EventCoin, // Insert coin
+		EventCoin, // Insert another coin (eats it)
+		EventPush, // Walk through
+		EventPush, // Try to walk through again
+	}
+
+	fsm.Compute(sequenceOfEvents)
+
+	fmt.Printf("Final State: %s\n", fsm.CurrentState.Name)
+}
